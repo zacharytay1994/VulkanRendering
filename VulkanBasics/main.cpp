@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -100,9 +101,10 @@ public:
     }
 
 private:
-    GLFWwindow* window;                         // glfw created window instance
-    VkInstance instance;                        // vulkan instance
-    VkDebugUtilsMessengerEXT debugMessenger;    // vulkan debug messenger, needed for vulkan debugging
+    GLFWwindow* window;                                 // glfw created window instance
+    VkInstance instance;                                // vulkan instance
+    VkDebugUtilsMessengerEXT debugMessenger;            // vulkan debug messenger, needed for vulkan debugging
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;   // vulkan physical device, i.e. gpu handle
 
     // vulkan sdk validation layers
     const std::vector<const char*> validationLayers = {
@@ -132,6 +134,94 @@ private:
     {
         createInstance();
         setupDebugMessenger();
+        pickPhysicalDevice();
+    }
+
+    void pickPhysicalDevice()
+    {
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+        if (deviceCount == 0)
+        {
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        }
+        // get all devices
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+        // prints out all devices
+        std::cout << "physical devices:" << std::endl;
+        for (const auto& device : devices)
+        {
+            VkPhysicalDeviceProperties device_properties;
+            vkGetPhysicalDeviceProperties(device, &device_properties);
+
+            std::cout << "\t" << device_properties.deviceName << std::endl;
+        }
+
+        // check if any devices are suitable for the operations that we want
+        // selects first suitable device
+        for (const auto& device : devices)
+        {
+            if (isDeviceSuitable(device))
+            {
+                physicalDevice = device;
+                VkPhysicalDeviceProperties physical_device_property;
+                vkGetPhysicalDeviceProperties(physicalDevice, &physical_device_property);
+                std::cout << "selected device:\n\t" << physical_device_property.deviceName << std::endl;
+                break;
+            }
+        }
+        if (physicalDevice == VK_NULL_HANDLE)
+        {
+            throw std::runtime_error("failed to find a suitable GPU for selected operations.");
+        }
+    }
+
+    struct QueueFamilyIndices
+    {
+        std::optional<uint32_t> graphicsFamily;
+
+        bool isComplete()
+        {
+            return graphicsFamily.has_value();
+        }
+    };
+
+    bool isDeviceSuitable(VkPhysicalDevice device)
+    {
+        // check if device has queue family and is suitable
+        QueueFamilyIndices indices = findQueueFamilies(device);
+        return indices.isComplete();
+    }
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device)
+    {
+        QueueFamilyIndices indices;
+
+        // get all device queue families
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+        // store them in self made queue family struct, i.e. QueueFamilyIndices
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies)
+        {
+            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                indices.graphicsFamily = i;
+            }
+            // if all families filled, early exit from queue
+            if (indices.isComplete())
+            {
+                break;
+            }
+            ++i;
+        }
+
+        return indices;
     }
 
     void setupDebugMessenger()
