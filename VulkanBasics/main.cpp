@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
+#include <cstring>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -23,6 +24,17 @@ public:
 private:
     GLFWwindow* window;
     VkInstance instance;
+
+    // vulkan sdk validation layers
+    const std::vector<const char*> validationLayers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+
+    #ifdef NDEBUG
+    const bool enableValidationLayers = false;
+    #else
+    const bool enableValidationLayers = true;
+    #endif
 
     void initWindow()
     {
@@ -63,6 +75,12 @@ private:
 
     void createInstance()
     {
+        // check validation layers for debugging
+        if (enableValidationLayers && !checkValidationLayerSupport())
+        {
+            throw std::runtime_error("validation layers requested, but not available!");
+        }
+
         //  lets driver optimize our application with this info
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -77,6 +95,15 @@ private:
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
+        if (enableValidationLayers)
+        {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+        }
+        else
+        {
+            createInfo.enabledLayerCount = 0;
+        }
 
         /*  Since vulkan is cross platform, we have to specify the platform
         *   extension for the application, in this case we can get it from glfw
@@ -96,7 +123,7 @@ private:
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
         // check if all extensions available
-        if (!GLFWExtensionsFound(glfwExtensions, glfwExtensionCount, extensions))
+        if (!checkExtensionsSupport(glfwExtensions, glfwExtensionCount, extensions))
         {
             throw std::runtime_error("required glfw extension not supported by vulkan.");
         }
@@ -118,7 +145,7 @@ private:
         }
     }
 
-    bool GLFWExtensionsFound(const char** glfwExtensions, int n,
+    bool checkExtensionsSupport(const char** glfwExtensions, int n,
         const std::vector<VkExtensionProperties>& vulkanExtensions)
     {
         // print out required extensions by glfw
@@ -137,11 +164,9 @@ private:
         for (int i = 0; i < n; ++i)
         {
             bool found{ false };
-            std::string glfw_extension_name{ glfwExtensions[i] };
             for (auto& vk_extension : vulkanExtensions)
             {
-                std::string vk_extension_name{ vk_extension.extensionName };
-                if (glfw_extension_name == vk_extension_name)
+                if (strcmp(vk_extension.extensionName, glfwExtensions[i]))
                 {
                     found = true;
                 }
@@ -151,6 +176,45 @@ private:
                 return false;
             }
         }
+        return true;
+    }
+
+    bool checkValidationLayerSupport()
+    {
+        uint32_t layerCount;
+        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+        // prints specified layers
+        std::cout << "requested layers:" << std::endl;
+        for (const auto& layer : validationLayers)
+        {
+            std::cout << "\t" << layer << std::endl;
+        }
+        // prints available layers
+        std::cout << "available layers:" << std::endl;
+        for (const auto& layer : availableLayers)
+        {
+            std::cout << "\t" << layer.layerName << std::endl;
+        }
+
+        for (const auto& layerName : validationLayers)
+        {
+            bool layerFound = false;
+            for (const auto& layerProperties : availableLayers)
+            {
+                if (strcmp(layerName, layerProperties.layerName))
+                {
+                    layerFound = true;
+                }
+            }
+            if (!layerFound)
+            {
+                return false;
+            }
+        }
+        std::cout << "all required layers found." << std::endl;
         return true;
     }
 };
