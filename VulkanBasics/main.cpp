@@ -105,6 +105,8 @@ private:
     VkInstance instance;                                // vulkan instance
     VkDebugUtilsMessengerEXT debugMessenger;            // vulkan debug messenger, needed for vulkan debugging
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;   // vulkan physical device, i.e. gpu handle
+    VkDevice device;                                    // logical device to interface with the physical device
+    VkQueue graphicsQueue;                              // handle to the queues created with the logical device
 
     // vulkan sdk validation layers
     const std::vector<const char*> validationLayers = {
@@ -137,6 +139,46 @@ private:
         pickPhysicalDevice();
     }
 
+    void createLogicalDevice()
+    {
+        QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+        queueCreateInfo.queueCount = 1;
+        float queuePriority = 1.0f;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+
+        // no device features needed for logical device for now
+        VkPhysicalDeviceFeatures deviceFeatures{};
+        
+        VkDeviceCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        createInfo.pQueueCreateInfos = &queueCreateInfo;
+        createInfo.queueCreateInfoCount = 1;
+        createInfo.pEnabledFeatures = &deviceFeatures;
+        createInfo.enabledExtensionCount = 0;
+
+        if (enableValidationLayers)
+        {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+        }
+        else
+        {
+            createInfo.enabledLayerCount = 0;
+        }
+
+        // create device
+        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create logical device!");
+        }
+
+        vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
+    }
+
     void pickPhysicalDevice()
     {
         uint32_t deviceCount = 0;
@@ -151,21 +193,21 @@ private:
 
         // prints out all devices
         std::cout << "physical devices:" << std::endl;
-        for (const auto& device : devices)
+        for (const auto& physical_device : devices)
         {
             VkPhysicalDeviceProperties device_properties;
-            vkGetPhysicalDeviceProperties(device, &device_properties);
+            vkGetPhysicalDeviceProperties(physical_device, &device_properties);
 
             std::cout << "\t" << device_properties.deviceName << std::endl;
         }
 
         // check if any devices are suitable for the operations that we want
         // selects first suitable device
-        for (const auto& device : devices)
+        for (const auto& physical_device : devices)
         {
-            if (isDeviceSuitable(device))
+            if (isDeviceSuitable(physical_device))
             {
-                physicalDevice = device;
+                physicalDevice = physical_device;
                 VkPhysicalDeviceProperties physical_device_property;
                 vkGetPhysicalDeviceProperties(physicalDevice, &physical_device_property);
                 std::cout << "selected device:\n\t" << physical_device_property.deviceName << std::endl;
@@ -200,16 +242,16 @@ private:
         QueueFamilyIndices indices;
 
         // get all device queue families
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+        uint32_t queueFamilyPropertyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyPropertyCount, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamiliesProperties(queueFamilyPropertyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyPropertyCount, queueFamiliesProperties.data());
 
         // store them in self made queue family struct, i.e. QueueFamilyIndices
         int i = 0;
-        for (const auto& queueFamily : queueFamilies)
+        for (const auto& queueFamilyProperty : queueFamiliesProperties)
         {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            if (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 indices.graphicsFamily = i;
             }
@@ -252,6 +294,8 @@ private:
 
     void cleanup()
     {
+        vkDestroyDevice(device, nullptr);
+
         // destroy debug messenger
         if (enableValidationLayers)
         {
