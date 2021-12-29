@@ -325,7 +325,7 @@ private:
             // most hardware have the same graphics and presentation queue family,
             // so exclusive if the most used case
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            createInfo.queueFamilyIndexCount = 0;
+            createInfo.queueFamilyIndexCount = 1;
             createInfo.pQueueFamilyIndices = nullptr;
         }
 
@@ -505,24 +505,26 @@ private:
         int i = 0;
         for (const auto& queueFamilyProperty : queueFamiliesProperties)
         {
+            // look for graphics bit
             if (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 indices.graphicsFamily = i;
             }
+
+            // look for present support
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR ( device , i , surface , &presentSupport );
+            if ( presentSupport )
+            {
+                indices.presentFamily = i;
+            }
+
             // if all families filled, early exit from queue
             if (indices.isComplete())
             {
                 break;
             }
             ++i;
-        }
-
-        // look for present support
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR ( device , i , surface , &presentSupport );
-        if ( presentSupport )
-        {
-            indices.presentFamily = i;
         }
 
         return indices;
