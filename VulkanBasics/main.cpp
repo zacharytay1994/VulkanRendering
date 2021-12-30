@@ -11,6 +11,7 @@
 #include <set>
 #include <cstdint>
 #include <algorithm>
+#include <fstream>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -89,6 +90,36 @@ void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& create
 }
 /*!
  * VULKAN DEBUG FUNCTIONS - END
+ * ****************************************************************
+*/
+
+/*!
+ * SHADER READING FUNCTIONS - START
+ * ****************************************************************
+*/
+
+static std::vector<char> readFile ( std::string const& filename )
+{
+    std::ifstream file ( filename , std::ios::ate | std::ios::binary );
+
+    if ( !file.is_open () )
+    {
+        throw std::runtime_error ( "failed to open file!" );
+    }
+
+    size_t fileSize = ( size_t ) file.tellg ();
+    std::vector<char> buffer ( fileSize );
+
+    file.seekg ( 0 );
+    file.read ( buffer.data () , fileSize );
+    
+    file.close ();
+
+    return buffer;
+}
+
+/*!
+ * SHADER READING FUNCTIONS - END
  * ****************************************************************
 */
 
@@ -279,6 +310,57 @@ private:
         createLogicalDevice ();
         createSwapChain ();
         createImageViews ();
+        createGraphicsPipeline ();
+    }
+
+    VkShaderModule createShaderModule ( std::vector<char> const& code )
+    {
+        VkShaderModuleCreateInfo createInfo {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = code.size ();
+        createInfo.pCode = reinterpret_cast< uint32_t const* >( code.data () );
+
+        VkShaderModule shaderModule;
+        if ( vkCreateShaderModule ( device , &createInfo , nullptr , &shaderModule ) != VK_SUCCESS )
+        {
+            throw std::runtime_error ( "failed to create shader module!" );
+        }
+
+        return shaderModule;
+    }
+
+    void createGraphicsPipeline ()
+    {
+        auto vertShaderCode = readFile ( "shaders/vert.spv" );
+        auto fragShaderCode = readFile ( "shaders/frag.spv" );
+
+        std::cout << "size of vert read : " << vertShaderCode.size () << std::endl;
+        std::cout << "size of frag read : " << fragShaderCode.size () << std::endl;
+
+        VkShaderModule vertShaderModule = createShaderModule ( vertShaderCode );
+        VkShaderModule fragShaderModule = createShaderModule ( fragShaderCode );
+
+        // vertex shader stage creation
+        VkPipelineShaderStageCreateInfo vertShaderStageInfo {};
+        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+        vertShaderStageInfo.pSpecializationInfo = nullptr;  // used to optimize constant variables
+
+        // fragment shader stage creation
+        VkPipelineShaderStageCreateInfo fragShaderStageInfo {};
+        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        vertShaderStageInfo.module = fragShaderModule;
+        vertShaderStageInfo.pName = "main";
+        vertShaderStageInfo.pSpecializationInfo = nullptr;  // used to optimize constant variables
+
+        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+        // clean up local shader modules after compiling and linking
+        vkDestroyShaderModule ( device , fragShaderModule , nullptr );
+        vkDestroyShaderModule ( device , vertShaderModule , nullptr );
     }
 
     void createImageViews ()
