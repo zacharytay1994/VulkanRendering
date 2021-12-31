@@ -150,6 +150,7 @@ private:
     std::vector<VkImageView> swapChainImageViews;
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
+    VkPipeline graphicsPipeline;
 
     // vulkan sdk validation layers
     const std::vector<const char*> validationLayers = {
@@ -390,11 +391,11 @@ private:
 
         // fragment shader stage creation
         VkPipelineShaderStageCreateInfo fragShaderStageInfo {};
-        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vertShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        vertShaderStageInfo.module = fragShaderModule;
-        vertShaderStageInfo.pName = "main";
-        vertShaderStageInfo.pSpecializationInfo = nullptr;  // used to optimize constant variables
+        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+        fragShaderStageInfo.pSpecializationInfo = nullptr;  // used to optimize constant variables
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
@@ -516,6 +517,40 @@ private:
         if ( vkCreatePipelineLayout ( device , &pipelineLayoutInfo , nullptr , &pipelineLayout ) != VK_SUCCESS )
         {
             throw std::runtime_error ( "failed to create pipeline layout!" );
+        }
+
+        // creating pipeline
+        VkGraphicsPipelineCreateInfo pipelineInfo {};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+
+        // shader stages
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+
+        // fixed function
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pDepthStencilState = nullptr; // Optional
+        pipelineInfo.pColorBlendState = &colorBlending;
+        pipelineInfo.pDynamicState = nullptr;
+
+        // pipeline layout
+        pipelineInfo.layout = pipelineLayout;
+
+        // render and sub pass
+        pipelineInfo.renderPass = renderPass;
+        pipelineInfo.subpass = 0;
+
+        // base pipeline to aid efficient creation of pipeline based on existing
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+        pipelineInfo.basePipelineIndex = -1;
+
+        if ( vkCreateGraphicsPipelines ( device , VK_NULL_HANDLE , 1 , &pipelineInfo , nullptr , &graphicsPipeline ) != VK_SUCCESS )
+        {
+            throw std::runtime_error ( "failed to create graphics pipeline!" );
         }
 
         // clean up local shader modules after compiling and linking
@@ -831,6 +866,7 @@ private:
     void cleanup()
     {
         // clean up pipeline layout
+        vkDestroyPipeline ( device , graphicsPipeline , nullptr );
         vkDestroyPipelineLayout ( device , pipelineLayout , nullptr );
         vkDestroyRenderPass ( device , renderPass , nullptr );
 
