@@ -13,6 +13,12 @@
 #include <algorithm>
 #include <fstream>
 
+/* PROJECT INCLUDES */
+#include "src/internal/tools/JZvk_Support.h"
+#include "src/internal/debug/JZvk_Debug.h"
+#include "src/internal/debug/JZvk_Log.h"
+#include "src/internal/tools/JZvk_Create.h"
+
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const int MAX_FRAMES_IN_FLIGHT = 2;
@@ -129,7 +135,8 @@ class HelloTriangleApplication
 public:
     void run()
     {
-        initWindow();
+        //initWindow();
+        window = JZvk::Create::GLFWWindow ( WIDTH , HEIGHT , "Vulkan" );
         initVulkan();
         mainLoop();
         cleanup();
@@ -301,23 +308,14 @@ private:
     const bool enableValidationLayers = true;
     #endif
 
-    void initWindow()
-    {
-        // initialize glfw
-        glfwInit();
-        // tell glfw not to create opengl window
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        // disable resize
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        // create glfw window
-        window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-    }
-
     void initVulkan()
     {
-        createInstance();
-        setupDebugMessenger();
-        createSurface ();
+        //createInstance();
+        instance = JZvk::Create::VKInstance ( "Vulkan" );
+        debugMessenger = JZvk::Create::VKDebugMessenger ( instance );
+        //setupDebugMessenger();
+        //createSurface ();
+        surface = JZvk::Create::VKSurface ( instance , window );
         pickPhysicalDevice();
         createLogicalDevice ();
         createSwapChain ();
@@ -817,13 +815,13 @@ private:
         swapChainExtent = extent;
     }
 
-    void createSurface ()
+    /*void createSurface ()
     {
         if ( glfwCreateWindowSurface ( instance , window , nullptr , &surface ) != VK_SUCCESS )
         {
             throw std::runtime_error ( "failed to create window surface!" );
         }
-    }
+    }*/
 
     void createLogicalDevice()
     {
@@ -907,7 +905,7 @@ private:
         // selects first suitable device
         for (const auto& physical_device : devices)
         {
-            if (isDeviceSuitable(physical_device))
+            if (JZvk::IsDeviceSuitable( physical_device , surface ))
             {
                 physicalDevice = physical_device;
                 VkPhysicalDeviceProperties physical_device_property;
@@ -937,19 +935,21 @@ private:
     bool isDeviceSuitable(VkPhysicalDevice device)
     {
         // check if device has queue family and is suitable
-        QueueFamilyIndices indices = findQueueFamilies(device);
+        //QueueFamilyIndices indices = findQueueFamilies(device);
 
-        bool extensionsSupported = checkDeviceExtensionSupport ( device );
+        //bool extensionsSupported = checkDeviceExtensionSupport ( device );
 
-        // can only query swap chain support is extensions are supported
-        bool swapChainAdequate = false;
-        if ( extensionsSupported )
-        {
-            SwapChainSupportDetails swapChainSupport = querySwapChainSupport ( device );
-            swapChainAdequate = !swapChainSupport.formats.empty () && !swapChainSupport.presentModes.empty ();
-        }
+        //// can only query swap chain support is extensions are supported
+        //bool swapChainAdequate = false;
+        //if ( extensionsSupported )
+        //{
+        //    SwapChainSupportDetails swapChainSupport = querySwapChainSupport ( device );
+        //    swapChainAdequate = !swapChainSupport.formats.empty () && !swapChainSupport.presentModes.empty ();
+        //}
 
-        return indices.isComplete() && extensionsSupported && swapChainAdequate;
+        return JZvk::FindQueueFamilies ( device , surface ).IsComplete() && JZvk::CheckDeviceExtensionsSupport ( device ) && JZvk::CheckSwapChainSupport ( device , surface );
+
+        //return indices.isComplete() && extensionsSupported && swapChainAdequate;
     }
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device)
@@ -991,21 +991,21 @@ private:
         return indices;
     }
 
-    void setupDebugMessenger()
-    {
-        if (!enableValidationLayers) return;
-        // debug messenger create info
-        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+    //void setupDebugMessenger()
+    //{
+    //    if (!enableValidationLayers) return;
+    //    // debug messenger create info
+    //    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
 
-        // configure create info
-        PopulateDebugMessengerCreateInfo(createInfo);
+    //    // configure create info
+    //    PopulateDebugMessengerCreateInfo(createInfo);
 
-        // create debug messenger with proxy function defined above
-        if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
-        {
-            throw std::runtime_error("failed to set up debug messenger!");
-        }
-    }
+    //    // create debug messenger with proxy function defined above
+    //    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+    //    {
+    //        throw std::runtime_error("failed to set up debug messenger!");
+    //    }
+    //}
 
     void mainLoop()
     {
@@ -1129,177 +1129,162 @@ private:
         glfwTerminate();
     }
 
-    void createInstance()
-    {
-        // check validation layers for debugging
-        if (enableValidationLayers && !checkValidationLayerSupport())
-        {
-            throw std::runtime_error("validation layers requested, but not available!");
-        }
+    //void createInstance()
+    //{
+    //    // check validation layers for debugging
+    //    if (enableValidationLayers && !checkValidationLayerSupport())
+    //    {
+    //        throw std::runtime_error("validation layers requested, but not available!");
+    //    }
 
-        //  lets driver optimize our application with this info
-        VkApplicationInfo appInfo{};
-        appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName    = "Hello Triangle";
-        appInfo.applicationVersion  = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.pEngineName         = "No Engine";
-        appInfo.engineVersion       = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion          = VK_API_VERSION_1_0;
-
-        /*  non optional, tells vulkan driver which global extensionsand validation
-            layers we want to use. */
-        VkInstanceCreateInfo createInfo{};
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-
-        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        createInfo.pApplicationInfo = &appInfo;
-        if (enableValidationLayers)
-        {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
-
-            // to check for errors in vkCreateInstance,
-            // we have to pass in debug messenger create info as the pnext of instance create info
-            PopulateDebugMessengerCreateInfo(debugCreateInfo);
-            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-        }
-        else
-        {
-            createInfo.enabledLayerCount = 0;
-        }
-
-        /*  Since vulkan is cross platform, we have to specify the platform
-        *   extension for the application, in this case we can get it from glfw
-        */
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
-
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-        //  get list of supported extensions from vulkan
-        uint32_t extensionCount = 0;
-        //  - get number of supported extensions
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-        //  - allocate container for storing the extensions
-        std::vector<VkExtensionProperties> extensions(extensionCount);
-        //  - query supported extensions details
-        vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-
-        // check if all extensions available
-        if (!checkExtensionsSupport(glfwExtensions, glfwExtensionCount, extensions))
-        {
-            throw std::runtime_error("required glfw extension not supported by vulkan.");
-        }
-        else
-        {
-            std::cout << "all required extensions found." << std::endl;
-        }
+    //    //  lets driver optimize our application with this info
+    //    VkApplicationInfo appInfo{};
+    //    appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    //    appInfo.pApplicationName    = "Hello Triangle";
+    //    appInfo.applicationVersion  = VK_MAKE_VERSION(1, 0, 0);
+    //    appInfo.pEngineName         = "No Engine";
+    //    appInfo.engineVersion       = VK_MAKE_VERSION(1, 0, 0);
+    //    appInfo.apiVersion          = VK_API_VERSION_1_0;
 
 
-        // add debug extensions if debug and has validation layers
-        if (enableValidationLayers)
-        {
-            std::vector<const char*> debug_extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-            debug_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            createInfo.enabledExtensionCount = static_cast<uint32_t>(debug_extensions.size());
-            createInfo.ppEnabledExtensionNames = debug_extensions.data();
+    //    /*  Since vulkan is cross platform, we have to specify the platform
+    //    *   extension for the application, in this case we can get it from glfw
+    //    */
+    //    uint32_t glfwExtensionCount = 0;
+    //    const char** glfwExtensions;
 
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
+    //    glfwExtensions = glfwGetRequiredInstanceExtensions ( &glfwExtensionCount );
 
-            //  create vulkan instance
-            if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create instance!");
-            }
-        }
-        else
-        {
-            createInfo.enabledExtensionCount = glfwExtensionCount;
-            createInfo.ppEnabledExtensionNames = glfwExtensions;
+    //    // check if all extensions needed by GLFW are available by vulkan 
+    //    JZvk::CheckGLFWExtensionsSupport ( glfwExtensions , glfwExtensionCount );
 
-            createInfo.enabledLayerCount = 0;
+    //    /*  non optional, tells vulkan driver which global extensionsand validation
+    //        layers we want to use. */
+    //    VkInstanceCreateInfo createInfo{};
+    //    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 
-            //  create vulkan instance
-            if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create instance!");
-            }
-        }
-    }
+    //    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    //    createInfo.pApplicationInfo = &appInfo;
+    //    if (enableValidationLayers)
+    //    {
+    //        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+    //        createInfo.ppEnabledLayerNames = validationLayers.data();
 
-    bool checkExtensionsSupport(const char** glfwExtensions, int n,
-        const std::vector<VkExtensionProperties>& vulkanExtensions)
-    {
-        // print out required extensions by glfw
-        std::cout << "glfw required extensions:" << std::endl;
-        for (int i = 0; i < n; ++i)
-        {
-            std::cout << "\t" << glfwExtensions[i] << std::endl;
-        }
-        // print out available extensions provided by vulkan
-        std::cout << "availble extensions:" << std::endl;
-        for (const auto& extension : vulkanExtensions)
-        {
-            std::cout << "\t" << extension.extensionName << std::endl;
-        }
+    //        // to check for errors in vkCreateInstance,
+    //        // we have to pass in debug messenger create info as the pnext of instance create info
+    //        PopulateDebugMessengerCreateInfo(debugCreateInfo);
+    //        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+    //    }
+    //    else
+    //    {
+    //        createInfo.enabledLayerCount = 0;
+    //    }
 
-        for (int i = 0; i < n; ++i)
-        {
-            bool found{ false };
-            for (auto& vk_extension : vulkanExtensions)
-            {
-                if (strcmp(vk_extension.extensionName, glfwExtensions[i]))
-                {
-                    found = true;
-                }
-            }
-            if (!found)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
 
-    bool checkValidationLayerSupport()
-    {
-        uint32_t layerCount;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+    //    // add debug extensions if debug and has validation layers
+    //    if (enableValidationLayers)
+    //    {
+    //        std::vector<const char*> debug_extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    //        debug_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    //        createInfo.enabledExtensionCount = static_cast<uint32_t>(debug_extensions.size());
+    //        createInfo.ppEnabledExtensionNames = debug_extensions.data();
 
-        // prints specified layers
-        std::cout << "requested layers:" << std::endl;
-        for (const auto& layer : validationLayers)
-        {
-            std::cout << "\t" << layer << std::endl;
-        }
-        // prints available layers
-        std::cout << "available layers:" << std::endl;
-        for (const auto& layer : availableLayers)
-        {
-            std::cout << "\t" << layer.layerName << std::endl;
-        }
+    //        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+    //        createInfo.ppEnabledLayerNames = validationLayers.data();
 
-        for (const auto& layerName : validationLayers)
-        {
-            bool layerFound = false;
-            for (const auto& layerProperties : availableLayers)
-            {
-                if (strcmp(layerName, layerProperties.layerName))
-                {
-                    layerFound = true;
-                }
-            }
-            if (!layerFound)
-            {
-                return false;
-            }
-        }
-        std::cout << "all required layers found." << std::endl;
-        return true;
-    }
+    //        //  create vulkan instance
+    //        if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    //        {
+    //            throw std::runtime_error("failed to create instance!");
+    //        }
+    //    }
+    //    else
+    //    {
+    //        createInfo.enabledExtensionCount = glfwExtensionCount;
+    //        createInfo.ppEnabledExtensionNames = glfwExtensions;
+
+    //        createInfo.enabledLayerCount = 0;
+
+    //        //  create vulkan instance
+    //        if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    //        {
+    //            throw std::runtime_error("failed to create instance!");
+    //        }
+    //    }
+    //}
+
+    //bool checkExtensionsSupport(const char** glfwExtensions, int n,
+    //    const std::vector<VkExtensionProperties>& vulkanExtensions)
+    //{
+    //    // print out required extensions by glfw
+    //    std::cout << "glfw required extensions:" << std::endl;
+    //    for (int i = 0; i < n; ++i)
+    //    {
+    //        std::cout << "\t" << glfwExtensions[i] << std::endl;
+    //    }
+    //    // print out available extensions provided by vulkan
+    //    std::cout << "availble extensions:" << std::endl;
+    //    for (const auto& extension : vulkanExtensions)
+    //    {
+    //        std::cout << "\t" << extension.extensionName << std::endl;
+    //    }
+
+    //    for (int i = 0; i < n; ++i)
+    //    {
+    //        bool found{ false };
+    //        for (auto& vk_extension : vulkanExtensions)
+    //        {
+    //            if (strcmp(vk_extension.extensionName, glfwExtensions[i]))
+    //            {
+    //                found = true;
+    //            }
+    //        }
+    //        if (!found)
+    //        {
+    //            return false;
+    //        }
+    //    }
+    //    return true;
+    //}
+
+    //bool checkValidationLayerSupport()
+    //{
+    //    uint32_t layerCount;
+    //    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+    //    std::vector<VkLayerProperties> availableLayers(layerCount);
+    //    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    //    // prints specified layers
+    //    std::cout << "requested layers:" << std::endl;
+    //    for (const auto& layer : validationLayers)
+    //    {
+    //        std::cout << "\t" << layer << std::endl;
+    //    }
+    //    // prints available layers
+    //    std::cout << "available layers:" << std::endl;
+    //    for (const auto& layer : availableLayers)
+    //    {
+    //        std::cout << "\t" << layer.layerName << std::endl;
+    //    }
+
+    //    for (const auto& layerName : validationLayers)
+    //    {
+    //        bool layerFound = false;
+    //        for (const auto& layerProperties : availableLayers)
+    //        {
+    //            if (strcmp(layerName, layerProperties.layerName))
+    //            {
+    //                layerFound = true;
+    //            }
+    //        }
+    //        if (!layerFound)
+    //        {
+    //            return false;
+    //        }
+    //    }
+    //    std::cout << "all required layers found." << std::endl;
+    //    return true;
+    //}
 };
 
 int main()

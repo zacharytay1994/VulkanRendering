@@ -144,6 +144,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\internal\debug\JZvk_Debug.cpp" />
+    <ClCompile Include="src\internal\debug\JZvk_Log.cpp" />
+    <ClCompile Include="src\internal\tools\JZvk_Create.cpp" />
+    <ClCompile Include="src\internal\tools\JZvk_Support.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\internal\debug\JZvk_Debug.h" />
+    <ClInclude Include="src\internal\debug\JZvk_Log.h" />
+    <ClInclude Include="src\internal\tools\JZvk_Create.h" />
+    <ClInclude Include="src\internal\tools\JZvk_Support.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
