@@ -121,31 +121,38 @@ namespace JZvk
         return true;
     }
 
-    bool CheckSwapChainSupport ( VkPhysicalDevice device , VkSurfaceKHR surface )
+    SwapChainSupportDetails GetSwapChainSupport ( VkPhysicalDevice physicalDevice , VkSurfaceKHR surface )
     {
         SwapChainSupportDetails details;
 
         // check surface capabilities
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR ( device , surface , &details.capabilities_ );
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR ( physicalDevice , surface , &details.capabilities_ );
 
         // check surface formats
         uint32_t format_count;
-        vkGetPhysicalDeviceSurfaceFormatsKHR ( device , surface , &format_count , nullptr );
+        vkGetPhysicalDeviceSurfaceFormatsKHR ( physicalDevice , surface , &format_count , nullptr );
         if ( format_count != 0 )
         {
             details.formats_.resize ( format_count );
-            vkGetPhysicalDeviceSurfaceFormatsKHR ( device , surface , &format_count , details.formats_.data () );
+            vkGetPhysicalDeviceSurfaceFormatsKHR ( physicalDevice , surface , &format_count , details.formats_.data () );
         }
 
         // check surface present modes
         uint32_t present_modes_count;
-        vkGetPhysicalDeviceSurfacePresentModesKHR ( device , surface , &present_modes_count , nullptr );
+        vkGetPhysicalDeviceSurfacePresentModesKHR ( physicalDevice , surface , &present_modes_count , nullptr );
         if ( present_modes_count != 0 )
         {
             details.present_modes_.resize ( present_modes_count );
-            vkGetPhysicalDeviceSurfacePresentModesKHR ( device , surface , &present_modes_count , details.present_modes_.data () );
+            vkGetPhysicalDeviceSurfacePresentModesKHR ( physicalDevice , surface , &present_modes_count , details.present_modes_.data () );
         }
 
+        return details;
+    }
+
+    bool CheckSwapChainSupport ( VkPhysicalDevice physicalDevice , VkSurfaceKHR surface )
+    {
+
+        SwapChainSupportDetails details = GetSwapChainSupport ( physicalDevice , surface );
         return !details.formats_.empty () && !details.present_modes_.empty ();
     }
 

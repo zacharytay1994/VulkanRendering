@@ -311,15 +311,24 @@ private:
     void initVulkan()
     {
         //createInstance();
-        instance = JZvk::Create::VKInstance ( "Vulkan" );
-        debugMessenger = JZvk::Create::VKDebugMessenger ( instance );
+        instance                = JZvk::Create::VKInstance ( "Vulkan" );
+        debugMessenger          = JZvk::Create::VKDebugMessenger ( instance );
         //setupDebugMessenger();
         //createSurface ();
-        surface = JZvk::Create::VKSurface ( instance , window );
-        pickPhysicalDevice();
-        createLogicalDevice ();
-        createSwapChain ();
-        createImageViews ();
+        surface                 = JZvk::Create::VKSurface ( instance , window );
+        //pickPhysicalDevice();
+        physicalDevice          = JZvk::Create::VKPhysicalDevice ( instance , surface );
+        //createLogicalDevice ();
+        device                  = JZvk::Create::VKLogicalDevice ( physicalDevice , surface );
+        graphicsQueue           = JZvk::Create::VKGraphicsQueue ( device , physicalDevice , surface );
+        presentQueue            = JZvk::Create::VKGraphicsQueue ( device , physicalDevice , surface );
+        //createSwapChain ();
+        swapChain               = JZvk::Create::VKSwapchain ( window , device , physicalDevice , surface );
+        swapChainExtent         = JZvk::Create::VKSwapchainExtent2D ( window , physicalDevice , surface );
+        swapChainImageFormat    = JZvk::Create::VKSwapchainSurfaceFormat ( physicalDevice , surface ).format;
+        swapChainImages         = JZvk::Create::VKSwapchainImages ( device , swapChain );
+        //createImageViews ();
+        swapChainImageViews = JZvk::Create::VKSwapchainImageViews ( device , swapChainImages , swapChainImageFormat );
         createRenderPass ();
         createGraphicsPipeline ();
         createFramebuffers ();

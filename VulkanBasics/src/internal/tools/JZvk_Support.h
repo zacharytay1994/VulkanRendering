@@ -8,6 +8,25 @@
 
 namespace JZvk
 {
+	struct QueueFamilyIndices
+	{
+		std::optional<uint32_t> graphics_family_;
+		std::optional<uint32_t> present_family_;
+
+		bool IsComplete ()
+		{
+			return graphics_family_.has_value ()
+				&& present_family_.has_value ();
+		}
+	};
+
+	struct SwapChainSupportDetails
+	{
+		VkSurfaceCapabilitiesKHR capabilities_;
+		std::vector<VkSurfaceFormatKHR> formats_;
+		std::vector<VkPresentModeKHR> present_modes_;
+	};
+
 	std::vector<char const*> GetValidationLayers ();
 	std::vector<char const*> GetDeviceExtensions ();
 
@@ -57,27 +76,8 @@ namespace JZvk
 	 * : If supported.
 	 * **************************************************************
 	*/
-	bool CheckSwapChainSupport ( VkPhysicalDevice device , VkSurfaceKHR surface );
-
-
-	struct QueueFamilyIndices
-	{
-		std::optional<uint32_t> graphics_family_;
-		std::optional<uint32_t> present_family_;
-
-		bool IsComplete ()
-		{
-			return graphics_family_.has_value ()
-				&& present_family_.has_value ();
-		}
-	};
-
-	struct SwapChainSupportDetails
-	{
-		VkSurfaceCapabilitiesKHR capabilities_;
-		std::vector<VkSurfaceFormatKHR> formats_;
-		std::vector<VkPresentModeKHR> present_modes_;
-	};
+	SwapChainSupportDetails GetSwapChainSupport ( VkPhysicalDevice physicalDevice , VkSurfaceKHR surface );
+	bool CheckSwapChainSupport ( VkPhysicalDevice physicalDevice , VkSurfaceKHR surface );
 
 	QueueFamilyIndices FindQueueFamilies ( VkPhysicalDevice device , VkSurfaceKHR surface );
 
